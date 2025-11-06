@@ -2,9 +2,6 @@
 // (receiver module+remote controller)
 //
 // This file has been customized for the "Interest Group Code" project.
-// - Renamed category to "Interest Group Code"
-// - Updated button codes for the Elegoo/Geeetech remote
-// - Added "last number pressed" block
 
 const enum IrButton {
   //% block="any"
@@ -87,11 +84,11 @@ namespace makerbit {
     hiword: uint16;
     loword: uint16;
     activeCommand: number;
+    lastNumberPressed: number; // New field to store the last number
     repeatTimeout: number;
     onIrButtonPressed: IrButtonHandler[];
     onIrButtonReleased: IrButtonHandler[];
     onIrDatagram: () => void;
-    lastNumberPressed: number; // New field for the "last number pressed" block
   }
   class IrButtonHandler {
     irButton: IrButton;
@@ -194,21 +191,20 @@ namespace makerbit {
 
       const newCommand = irState.commandSectionBits >> 8;
       
-      // === New logic for "last number pressed" ===
-      // Check if the new command is a number button and store it
-      switch(newCommand) {
-          case IrButton.Number_0: irState.lastNumberPressed = 0; break;
-          case IrButton.Number_1: irState.lastNumberPressed = 1; break;
-          case IrButton.Number_2: irState.lastNumberPressed = 2; break;
-          case IrButton.Number_3: irState.lastNumberPressed = 3; break;
-          case IrButton.Number_4: irState.lastNumberPressed = 4; break;
-          case IrButton.Number_5: irState.lastNumberPressed = 5; break;
-          case IrButton.Number_6: irState.lastNumberPressed = 6; break;
-          case IrButton.Number_7: irState.lastNumberPressed = 7; break;
-          case IrButton.Number_8: irState.lastNumberPressed = 8; break;
-          case IrButton.Number_9: irState.lastNumberPressed = 9; break;
+      // --- New Logic to store the last number pressed ---
+      switch (newCommand) {
+        case IrButton.Number_0: irState.lastNumberPressed = 0; break;
+        case IrButton.Number_1: irState.lastNumberPressed = 1; break;
+        case IrButton.Number_2: irState.lastNumberPressed = 2; break;
+        case IrButton.Number_3: irState.lastNumberPressed = 3; break;
+        case IrButton.Number_4: irState.lastNumberPressed = 4; break;
+        case IrButton.Number_5: irState.lastNumberPressed = 5; break;
+        case IrButton.Number_6: irState.lastNumberPressed = 6; break;
+        case IrButton.Number_7: irState.lastNumberPressed = 7; break;
+        case IrButton.Number_8: irState.lastNumberPressed = 8; break;
+        case IrButton.Number_9: irState.lastNumberPressed = 9; break;
       }
-      // === End of new logic ===
+      // --- End of new logic ---
 
       // Process a new command
       if (newCommand !== irState.activeCommand) {
@@ -241,14 +237,14 @@ namespace makerbit {
       hasNewDatagram: false,
       addressSectionBits: 0,
       commandSectionBits: 0,
-      hiword: 0,
+      hiword: 0, // TODO replace with uint32
       loword: 0,
       activeCommand: -1,
+      lastNumberPressed: 0, // Initialize the new field
       repeatTimeout: 0,
       onIrButtonPressed: [],
       onIrButtonReleased: [],
       onIrDatagram: undefined,
-      lastNumberPressed: 0 // Initialize the new field
     };
   }
 
@@ -329,7 +325,6 @@ namespace makerbit {
 
   /**
    * Returns the code of the IR button that was pressed last. Returns -1 (IrButton.Any) if no button has been pressed yet.
-   * This is the function that returns the code for *any* button.
    */
   //% subcategory="IR Receiver"
   //% blockId=makerbit_infrared_ir_button_pressed
@@ -344,43 +339,41 @@ namespace makerbit {
   }
   
   /**
+   * NEW BLOCK
    * Returns the last number (0-9) that was pressed on the remote.
-   * Returns 0 if no number has been pressed yet.
    */
   //% subcategory="IR Receiver"
-  //% blockId=makerbit_infrared_ir_last_number_pressed
+  //% blockId=makerbit_infrared_ir_last_number
   //% block="last number pressed"
-  //% weight=69
+  //% weight=75
   export function irLastNumberPressed(): number {
-      basic.pause(0); // Yield
-      initIrState();
-      return irState.lastNumberPressed;
+    basic.pause(0); 
+    initIrState();
+    return irState.lastNumberPressed;
   }
-
+  
   /**
-   * Returns the friendly name of the IR button that was pressed last.
-   * Returns "NONE" if no button has been pressed yet.
+   * NEW BLOCK
+   * Returns a friendly name for the last button pressed.
+   * Uses ASCII-safe strings for micro:bit display.
    */
   //% subcategory="IR Receiver"
   //% blockId=makerbit_infrared_ir_button_name
   //% block="last button pressed (name)"
-  //% weight=71
+  //% weight=72
   export function irButtonName(): string {
-      basic.pause(0); // Yield
-      if (!irState) {
-          return "NONE";
-      }
-
-      // Get the code of the last button pressed
-      const command = irState.commandSectionBits >> 8;
-
+    basic.pause(0); 
+    initIrState();
+    
+    const command = irState.commandSectionBits >> 8;
+      
       // Return a friendly string for each button
       switch(command) {
-          case IrButton.VolUp: return "↑";
-          case IrButton.VolDown: return "↓";
-          case IrButton.ChMinus: return "←";
-          case IrButton.ChPlus: return "→";
-          case IrButton.PlayPause: return "►";
+          case IrButton.VolUp: return "UP";
+          case IrButton.VolDown: return "DOWN";
+          case IrButton.ChMinus: return "LEFT";
+          case IrButton.ChPlus: return "RIGHT";
+          case IrButton.PlayPause: return "PLAY";
           case IrButton.Eq: return "EQ";
 
           case IrButton.Number_0: return "0";
@@ -394,16 +387,15 @@ namespace makerbit {
           case IrButton.Number_8: return "8";
           case IrButton.Number_9: return "9";
           
-          case IrButton.Rewind: return "«";
-          case IrButton.FastForward: return "»";
+          case IrButton.Rewind: return "<<";
+          case IrButton.FastForward: return ">>";
           case IrButton.Ch: return "CH";
           case IrButton.Plus100: return "100+";
           case IrButton.Plus200: return "200+";
-
+          
           case IrButton.Any: return "NONE";
-          default: 
-              if (command == 0) return "NONE";
-              return "UNKNOWN";
+          
+          default: return "?";
       }
   }
 
@@ -446,7 +438,7 @@ namespace makerbit {
   //% block="IR data was received"
   //% weight=80
   export function wasIrDataReceived(): boolean {
-    basic.pause(0); // Yield to support background processing when called in tight.
+    basic.pause(0); // Yield to support background processing when called in tight loops
     initIrState();
     if (irState.hasNewDatagram) {
       irState.hasNewDatagram = false;

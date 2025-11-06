@@ -1,25 +1,27 @@
 // MakerBit blocks supporting a Keyestudio Infrared Wireless Module Kit
 // (receiver module+remote controller)
+// This file has been modified to support the common Elegoo remote (NEC protocol)
+// and add custom features for "Interest Group Code" project.
 
 const enum IrButton {
   //% block="any"
   Any = -1,
   //% block="CH-"
-  ChMinus = 0xA2,
+  ChMinus = 0xa2,
   //% block="CH"
   Ch = 0x62,
   //% block="CH+"
-  ChPlus = 0xE2,
+  ChPlus = 0xe2,
   //% block="|<<"
   Rewind = 0x22,
   //% block=">>|"
   FastForward = 0x02,
   //% block=">||"
-  PlayPause = 0xC2,
+  PlayPause = 0xc2,
   //% block="VOL-"
-  VolDown = 0xE0,
+  VolDown = 0xe0,
   //% block="VOL+"
-  VolUp = 0xA8,
+  VolUp = 0xa8,
   //% block="EQ"
   Eq = 0x90,
   //% block="0"
@@ -27,23 +29,23 @@ const enum IrButton {
   //% block="100+"
   Plus100 = 0x98,
   //% block="200+"
-  Plus200 = 0xB0,
+  Plus200 = 0xb0,
   //% block="1"
   Number_1 = 0x30,
   //% block="2"
   Number_2 = 0x18,
   //% block="3"
-  Number_3 = 0x7A,
+  Number_3 = 0x7a,
   //% block="4"
   Number_4 = 0x10,
   //% block="5"
   Number_5 = 0x38,
   //% block="6"
-  Number_6 = 0x5A,
+  Number_6 = 0x5a,
   //% block="7"
   Number_7 = 0x42,
   //% block="8"
-  Number_8 = 0x4A,
+  Number_8 = 0x4a,
   //% block="9"
   Number_9 = 0x52,
 }
@@ -62,7 +64,7 @@ const enum IrProtocol {
   NEC = 1,
 }
 
-//% color=#0fbc11 icon="\u272a" block="MakerBit"
+//% color=#0fbc11 icon="\u272a" block="Interest Group Code"
 //% category="MakerBit"
 namespace makerbit {
   let irState: IrState;
@@ -83,6 +85,7 @@ namespace makerbit {
     loword: uint16;
     activeCommand: number;
     repeatTimeout: number;
+    lastNumberPressed: number; // Store the last number (0-9) pressed
     onIrButtonPressed: IrButtonHandler[];
     onIrButtonReleased: IrButtonHandler[];
     onIrDatagram: () => void;
@@ -91,15 +94,11 @@ namespace makerbit {
     irButton: IrButton;
     onEvent: () => void;
 
-    constructor(
-      irButton: IrButton,
-      onEvent: () => void
-    ) {
+    constructor(irButton: IrButton, onEvent: () => void) {
       this.irButton = irButton;
       this.onEvent = onEvent;
     }
   }
-
 
   function appendBitToDatagram(bit: number): number {
     irState.bitsReceived += 1;
@@ -173,7 +172,6 @@ namespace makerbit {
   }
 
   function handleIrEvent(irEvent: number) {
-
     // Refresh repeat timer
     if (irEvent === IR_DATAGRAM || irEvent === IR_REPEAT) {
       irState.repeatTimeout = input.runningTime() + REPEAT_TIMEOUT_MS;
@@ -183,24 +181,79 @@ namespace makerbit {
       irState.hasNewDatagram = true;
 
       if (irState.onIrDatagram) {
-        background.schedule(irState.onIrDatagram, background.Thread.UserCallback, background.Mode.Once, 0);
+        background.schedule(
+          irState.onIrDatagram,
+          background.Thread.UserCallback,
+          background.Mode.Once,
+          0
+        );
       }
 
       const newCommand = irState.commandSectionBits >> 8;
 
+      // --- Store the last number pressed ---
+      // Check if the new command is a number (0-9)
+      switch (newCommand) {
+        case IrButton.Number_0:
+          irState.lastNumberPressed = 0;
+          break;
+        case IrButton.Number_1:
+          irState.lastNumberPressed = 1;
+          break;
+        case IrButton.Number_2:
+          irState.lastNumberPressed = 2;
+          break;
+        case IrButton.Number_3:
+          irState.lastNumberPressed = 3;
+          break;
+        case IrButton.Number_4:
+          irState.lastNumberPressed = 4;
+          break;
+        case IrButton.Number_5:
+          irState.lastNumberPressed = 5;
+          break;
+        case IrButton.Number_6:
+          irState.lastNumberPressed = 6;
+          break;
+        case IrButton.Number_7:
+          irState.lastNumberPressed = 7;
+          break;
+        case IrButton.Number_8:
+          irState.lastNumberPressed = 8;
+          break;
+        case IrButton.Number_9:
+          irState.lastNumberPressed = 9;
+          break;
+      }
+      // --- End of new code ---
+
       // Process a new command
       if (newCommand !== irState.activeCommand) {
-
         if (irState.activeCommand >= 0) {
-          const releasedHandler = irState.onIrButtonReleased.find(h => h.irButton === irState.activeCommand || IrButton.Any === h.irButton);
+          const releasedHandler = irState.onIrButtonReleased.find(
+            (h) =>
+              h.irButton === irState.activeCommand || IrButton.Any === h.irButton
+          );
           if (releasedHandler) {
-            background.schedule(releasedHandler.onEvent, background.Thread.UserCallback, background.Mode.Once, 0);
+            background.schedule(
+              releasedHandler.onEvent,
+              background.Thread.UserCallback,
+              background.Mode.Once,
+              0
+            );
           }
         }
 
-        const pressedHandler = irState.onIrButtonPressed.find(h => h.irButton === newCommand || IrButton.Any === h.irButton);
+        const pressedHandler = irState.onIrButtonPressed.find(
+          (h) => h.irButton === newCommand || IrButton.Any === h.irButton
+        );
         if (pressedHandler) {
-          background.schedule(pressedHandler.onEvent, background.Thread.UserCallback, background.Mode.Once, 0);
+          background.schedule(
+            pressedHandler.onEvent,
+            background.Thread.UserCallback,
+            background.Mode.Once,
+            0
+          );
         }
 
         irState.activeCommand = newCommand;
@@ -223,6 +276,7 @@ namespace makerbit {
       loword: 0,
       activeCommand: -1,
       repeatTimeout: 0,
+      lastNumberPressed: -1, // Store the last number (0-9) pressed
       onIrButtonPressed: [],
       onIrButtonReleased: [],
       onIrDatagram: undefined,
@@ -255,7 +309,12 @@ namespace makerbit {
 
     enableIrMarkSpaceDetection(pin);
 
-    background.schedule(notifyIrEvents, background.Thread.Priority, background.Mode.Repeat, REPEAT_TIMEOUT_MS);
+    background.schedule(
+      notifyIrEvents,
+      background.Thread.Priority,
+      background.Mode.Repeat,
+      REPEAT_TIMEOUT_MS
+    );
   }
 
   function notifyIrEvents() {
@@ -266,9 +325,17 @@ namespace makerbit {
       if (now > irState.repeatTimeout) {
         // repeat timed out
 
-        const handler = irState.onIrButtonReleased.find(h => h.irButton === irState.activeCommand || IrButton.Any === h.irButton);
+        const handler = irState.onIrButtonReleased.find(
+          (h) =>
+            h.irButton === irState.activeCommand || IrButton.Any === h.irButton
+        );
         if (handler) {
-          background.schedule(handler.onEvent, background.Thread.UserCallback, background.Mode.Once, 0);
+          background.schedule(
+            handler.onEvent,
+            background.Thread.UserCallback,
+            background.Mode.Once,
+            0
+          );
         }
 
         irState.bitsReceived = 0;
@@ -298,8 +365,7 @@ namespace makerbit {
     initIrState();
     if (action === IrButtonAction.Pressed) {
       irState.onIrButtonPressed.push(new IrButtonHandler(button, handler));
-    }
-    else {
+    } else {
       irState.onIrButtonReleased.push(new IrButtonHandler(button, handler));
     }
   }
@@ -317,6 +383,21 @@ namespace makerbit {
       return IrButton.Any;
     }
     return irState.commandSectionBits >> 8;
+  }
+
+  /**
+   * Returns the last number button (0-9) that was pressed. Returns -1 if no number has been pressed yet.
+   */
+  //% subcategory="IR Receiver"
+  //% blockId=makerbit_infrared_ir_last_number_pressed
+  //% block="last number pressed"
+  //% weight=75
+  export function irLastNumberPressed(): number {
+    basic.pause(0); // Yield to support background processing when called in tight loops
+    if (!irState) {
+      return -1;
+    }
+    return irState.lastNumberPressed;
   }
 
   /**

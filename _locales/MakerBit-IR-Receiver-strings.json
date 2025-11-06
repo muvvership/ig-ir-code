@@ -1,5 +1,5 @@
 {
-"IrButton.Any|block": "any",
+  "IrButton.Any|block": "any",
   "IrButton.Ch|block": "CH",
   "IrButton.ChMinus|block": "CH-",
   "IrButton.ChPlus|block": "CH+",
@@ -29,10 +29,11 @@
   "makerbit.irButtonCode|block": "IR button code %button",
   "makerbit.irButton|block": "IR button",
   "makerbit.irDatagram|block": "IR datagram",
+  "makerbit.irLastNumberPressed|block": "last number pressed",
   "makerbit.onIrButton|block": "on IR button | %button | %action",
   "makerbit.onIrDatagram|block": "on IR datagram received",
   "makerbit.wasIrDataReceived|block": "IR data was received",
-  "makerbit|block": "MakerBit",
-  "{id:category}Makerbit": "Makerbit",
+  "makerbit|block": "Interest Group Code",
+  "{id:category}Makerbit": "Interest Group Code",
   "{id:subcategory}IR Receiver": "IR Receiver"
 }

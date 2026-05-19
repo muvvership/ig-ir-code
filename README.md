@@ -1,3 +1,5 @@
+# **Please note: I made this using claude code and I can't make any guarantees that the readme matches the code or that this is a working version. Hopefully you can get some ideas from this code.**
+
 # **Interest Group Code \- IR Remote Blocks**
 
 Welcome\! These are the custom MakeCode blocks for our infrared (IR) remote control project.
